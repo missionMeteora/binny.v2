@@ -5,8 +5,54 @@ package binny
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
 	"testing"
 )
+
+func BenchmarkJSONEncodeMap(b *testing.B) {
+	m := map[string]int{}
+	for i := 0; i < 1000; i++ {
+		m["x"+strconv.Itoa(i)+"x"] = i
+	}
+	buf := bytes.NewBuffer(nil)
+	enc := json.NewEncoder(buf)
+	enc.Encode(m)
+	b.SetBytes(int64(buf.Len()))
+	buf.Reset()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := enc.Encode(m); err != nil {
+			b.Fatal(err)
+		}
+		buf.Reset()
+	}
+}
+
+func BenchmarkJSONDecodeMap(b *testing.B) {
+	m := map[string]int{}
+	for i := 0; i < 1000; i++ {
+		m["x"+strconv.Itoa(i)+"x"] = i
+	}
+	bin, err := json.Marshal(m)
+	if err != nil {
+		b.Fatal(err)
+	}
+	rd := bytes.NewReader(bin)
+	dec := json.NewDecoder(rd)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var t map[string]int
+		if err := dec.Decode(&t); err != nil {
+			//b.Log(t)
+			b.Fatal(err)
+		}
+		if len(t) != len(m) {
+			b.Fatal("len(t) != len(m) ")
+		}
+		rd.Seek(0, 0)
+	}
+	b.SetBytes(int64(len(bin)))
+}
 
 func benchEncodeJSON(b *testing.B, o interface{}) {
 	buf := bytes.NewBuffer(make([]byte, 0, 4096))

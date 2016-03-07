@@ -2,7 +2,6 @@ package binny
 
 import (
 	"bufio"
-	"bytes"
 	"encoding"
 	"encoding/gob"
 	"io"
@@ -43,6 +42,7 @@ func NewEncoderSize(w io.Writer, sz int) *Encoder {
 
 func (enc *Encoder) Reset(w io.Writer) {
 	enc.Flush()
+	enc.hasWriter = w != nil
 	enc.w.Reset(w)
 }
 
@@ -294,11 +294,10 @@ func (enc *Encoder) writeLen(ln int) error {
 }
 
 func Marshal(v interface{}) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	enc := NewEncoder(buf)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	err := enc.Flush()
-	return buf.Bytes(), err
+	enc := getEncBuffer()
+	err := enc.e.Encode(v)
+	enc.e.Flush()
+	b := []byte(enc.b.String())
+	putEncBuffer(enc)
+	return b, err
 }

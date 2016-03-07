@@ -2,7 +2,6 @@ package binny
 
 import (
 	"bytes"
-	"encoding/json"
 	"math"
 	"math/big"
 	"strconv"
@@ -53,20 +52,17 @@ var encoderTests = []struct {
 }
 
 func TestEncoder(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	enc := NewEncoderSize(buf, 24)
 	for _, et := range encoderTests {
-		if err := enc.Encode(et.in); err != nil {
+		v, err := Marshal(et.in)
+		if err != nil {
 			t.Fatalf("%s: %v", et.name, err)
 		}
-		enc.Flush()
-		if v := buf.Bytes(); bytes.Compare(et.exp.b, v) != 0 {
+		if bytes.Compare(et.exp.b, v) != 0 {
 			t.Fatalf("%10s: failed\nexp: %v\ngot: %v", et.name, et.exp.b, v)
 		}
 		if testing.Verbose() {
 			t.Logf("%10s, blen=%-03d: %s", et.name, len(et.exp.b), "{"+strings.Join(et.exp.in, ", ")+"}")
 		}
-		buf.Reset()
 	}
 }
 
@@ -87,25 +83,6 @@ func BenchmarkEncodeMap(b *testing.B) {
 			b.Fatal(err)
 		}
 		enc.Flush()
-		buf.Reset()
-	}
-}
-
-func BenchmarkJSONEncodeMap(b *testing.B) {
-	m := map[string]int{}
-	for i := 0; i < 1000; i++ {
-		m["x"+strconv.Itoa(i)+"x"] = i
-	}
-	buf := bytes.NewBuffer(nil)
-	enc := json.NewEncoder(buf)
-	enc.Encode(m)
-	b.SetBytes(int64(buf.Len()))
-	buf.Reset()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := enc.Encode(m); err != nil {
-			b.Fatal(err)
-		}
 		buf.Reset()
 	}
 }

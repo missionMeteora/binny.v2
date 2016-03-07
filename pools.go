@@ -2,28 +2,23 @@ package binny
 
 import (
 	"bytes"
+	"io"
 	"sync"
 )
 
 var pools = struct {
-	p1  sync.Pool
-	p4  sync.Pool
 	enc sync.Pool
+	dec sync.Pool
 }{
-	p1: sync.Pool{
-		New: func() interface{} {
-			return make([]byte, 1024)
-		},
-	},
-	p4: sync.Pool{
-		New: func() interface{} {
-			return make([]byte, 4096)
-		},
-	},
 	enc: sync.Pool{
 		New: func() interface{} {
 			buf := bytes.NewBuffer(make([]byte, 0, DefaultEncoderBufferSize))
-			return &encBuffer{b: buf, e: NewEncoderSize(nil, 32)}
+			return &encBuffer{b: buf, e: NewEncoder(nil)}
+		},
+	},
+	dec: sync.Pool{
+		New: func() interface{} {
+			return NewDecoder(nil)
 		},
 	},
 }
@@ -40,7 +35,17 @@ func getEncBuffer() *encBuffer {
 }
 
 func putEncBuffer(eb *encBuffer) {
-	eb.e.Reset(nil)
 	eb.b.Reset()
 	pools.enc.Put(eb)
+}
+
+func getDec(r io.Reader) *Decoder {
+	dec := pools.dec.Get().(*Decoder)
+	dec.Reset(r)
+	return dec
+}
+
+func putDec(dec *Decoder) {
+	dec.Reset(nil)
+	pools.dec.Put(dec)
 }

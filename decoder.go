@@ -32,10 +32,15 @@ type Decoder struct {
 	buf [16]byte
 }
 
+// NewDecoder is an alias for NewDecoder(r, DefaultDecoderBufferSize)
 func NewDecoder(r io.Reader) *Decoder {
 	return NewDecoderSize(r, DefaultDecoderBufferSize)
 }
 
+// NewDecoder returns a new decoder that reads from r with specific buffer size.
+//
+// The decoder introduces its own buffering and may
+// read data from r beyond the requested values.
 func NewDecoderSize(r io.Reader, sz int) *Decoder {
 	if sz < 16 {
 		sz = 16
@@ -46,6 +51,7 @@ func NewDecoderSize(r io.Reader, sz int) *Decoder {
 	}
 }
 
+// Reset resets the internal reader.
 func (dec *Decoder) Reset(r io.Reader) {
 	dec.r.Reset(r)
 }
@@ -70,6 +76,7 @@ func (dec *Decoder) expectType(et Type) error {
 	return nil
 }
 
+// ReadBool returns a bool or an error.
 func (dec *Decoder) ReadBool() (bool, error) {
 	ft, _ := dec.readType()
 	switch ft {
@@ -78,7 +85,7 @@ func (dec *Decoder) ReadBool() (bool, error) {
 	case BoolFalse:
 		return false, nil
 	}
-	return false, DecoderTypeError{"tBoolTrue||tBoolFalse", ft}
+	return false, DecoderTypeError{"Bool", ft}
 }
 
 func (dec *Decoder) readInt8() (int64, uint8, error) {
@@ -109,6 +116,7 @@ func (dec *Decoder) readVarInt() (int64, uint8, error) {
 	return v, 64, err
 }
 
+// ReadInt retruns an int value and the size of the int or an error.
 func (dec *Decoder) ReadInt() (int64, uint8, error) {
 	ft, err := dec.readType()
 	if err != nil {
@@ -157,6 +165,7 @@ func (dec *Decoder) readVarUint() (uint64, uint8, error) {
 	return v, 64, err
 }
 
+// ReadUint retruns an int value and the size of the uint or an error.
 func (dec *Decoder) ReadUint() (v uint64, sz uint8, err error) {
 	ft, err := dec.readType()
 	if err != nil {
@@ -177,6 +186,7 @@ func (dec *Decoder) ReadUint() (v uint64, sz uint8, err error) {
 	return 0, 0, DecoderTypeError{"uint", ft}
 }
 
+// ReadFloat32 returns a float32 or an error.
 func (dec *Decoder) ReadFloat32() (float32, error) {
 	if err := dec.expectType(Float32); err != nil {
 		return 0, err
@@ -186,6 +196,7 @@ func (dec *Decoder) ReadFloat32() (float32, error) {
 	return *(*float32)(unsafe.Pointer(&buf[0])), err
 }
 
+// ReadFloat64 returns a float64 or an error.
 func (dec *Decoder) ReadFloat64() (float64, error) {
 	if err := dec.expectType(Float64); err != nil {
 		return 0, err
@@ -195,6 +206,7 @@ func (dec *Decoder) ReadFloat64() (float64, error) {
 	return *(*float64)(unsafe.Pointer(&buf[0])), err
 }
 
+// ReadComplex64 returns a complex64 or an error.
 func (dec *Decoder) ReadComplex64() (complex64, error) {
 	if err := dec.expectType(Complex64); err != nil {
 		return 0, err
@@ -205,6 +217,7 @@ func (dec *Decoder) ReadComplex64() (complex64, error) {
 	return *(*complex64)(unsafe.Pointer(&buf[0])), err
 }
 
+// ReadComplex128 returns a complex128 or an error.
 func (dec *Decoder) ReadComplex128() (complex128, error) {
 	if err := dec.expectType(Complex128); err != nil {
 		return 0, err
@@ -234,15 +247,18 @@ func (dec *Decoder) readBytes(exp Type) ([]byte, error) {
 	return buf, err
 }
 
+// ReadBytes returns a byte slice.
 func (dec *Decoder) ReadBytes() ([]byte, error) {
 	return dec.readBytes(ByteSlice)
 }
 
+// ReadBytes returns a string.
 func (dec *Decoder) ReadString() (string, error) {
 	b, err := dec.readBytes(String)
 	return string(b), err
 }
 
+// ReadBinary decodes and reads an object that implements the `encoding.BinaryUnmarshaler` interface.
 func (dec *Decoder) ReadBinary(v encoding.BinaryUnmarshaler) error {
 	b, err := dec.readBytes(Binary)
 	if err != nil {
@@ -251,6 +267,7 @@ func (dec *Decoder) ReadBinary(v encoding.BinaryUnmarshaler) error {
 	return v.UnmarshalBinary(b)
 }
 
+// ReadGob decodes and reads an object that implements the `gob.GobDecoder` interface.
 func (dec *Decoder) ReadGob(v gob.GobDecoder) error {
 	b, err := dec.readBytes(Gob)
 	if err != nil {
@@ -259,6 +276,8 @@ func (dec *Decoder) ReadGob(v gob.GobDecoder) error {
 	return v.GobDecode(b)
 }
 
+// Decode reads the next binny-encoded value from its
+// input and stores it in the value pointed to by v.
 func (dec *Decoder) Decode(v interface{}) (err error) {
 	switch v := v.(type) {
 	case Unmarshaler:
@@ -340,10 +359,10 @@ func (dec *Decoder) Decode(v interface{}) (err error) {
 		*v, err = dec.ReadBool()
 		return
 	}
-	return dec.DecodeValue(reflect.ValueOf(v))
+	return dec.decodeValue(reflect.ValueOf(v))
 }
 
-func (dec *Decoder) DecodeValue(v reflect.Value) error {
+func (dec *Decoder) decodeValue(v reflect.Value) error {
 	if v.Kind() != reflect.Ptr || !v.Elem().CanSet() {
 		return ErrNoPointer
 	}
@@ -351,10 +370,14 @@ func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	return fn(dec, v)
 }
 
+// Read is allows Decoder to be used as an io.Reader, note that internally this calls io.ReadFull().
 func (dec *Decoder) Read(p []byte) (int, error) {
 	return io.ReadFull(dec.r, p)
 }
 
 func Unmarshal(b []byte, v interface{}) error {
-	return NewDecoder(bytes.NewReader(b)).Decode(v)
+	dec := getDec(bytes.NewReader(b))
+	err := dec.Decode(v)
+	putDec(dec)
+	return err
 }

@@ -2,7 +2,6 @@ package binny
 
 import (
 	"bytes"
-	"encoding/json"
 	"reflect"
 	"strconv"
 	"testing"
@@ -40,18 +39,13 @@ func Val(v interface{}) reflect.Value {
 }
 
 func TestDecoder(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	enc := NewEncoder(buf)
-	dec := NewDecoder(nil)
-
 	for _, dt := range decoderTests {
-		if err := enc.Encode(dt.in); err != nil {
+		b, err := Marshal(dt.in)
+		if err != nil {
 			t.Fatalf("%15s (encode): %v", dt.name, err)
 		}
-		enc.Flush()
-		dec.Reset(bytes.NewBuffer(buf.Bytes()))
 		val := reflect.New(reflect.TypeOf(dt.in))
-		if err := dec.Decode(val.Interface()); err != nil {
+		if err := Unmarshal(b, val.Interface()); err != nil {
 			t.Fatalf("%15s (decode): %v", dt.name, err)
 		}
 		v := val.Elem()
@@ -76,7 +70,6 @@ func TestDecoder(t *testing.T) {
 		if v := v.Interface(); testing.Verbose() {
 			t.Logf("%15s: %T(%+v)", dt.name, v, v)
 		}
-		buf.Reset()
 	}
 }
 
@@ -91,32 +84,6 @@ func BenchmarkDecodeMap(b *testing.B) {
 	}
 	rd := bytes.NewReader(bin)
 	dec := NewDecoder(rd)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var t map[string]int
-		if err := dec.Decode(&t); err != nil {
-			//b.Log(t)
-			b.Fatal(err)
-		}
-		if len(t) != len(m) {
-			b.Fatal("len(t) != len(m) ")
-		}
-		rd.Seek(0, 0)
-	}
-	b.SetBytes(int64(len(bin)))
-}
-
-func BenchmarkJSONDecodeMap(b *testing.B) {
-	m := map[string]int{}
-	for i := 0; i < 1000; i++ {
-		m["x"+strconv.Itoa(i)+"x"] = i
-	}
-	bin, err := json.Marshal(m)
-	if err != nil {
-		b.Fatal(err)
-	}
-	rd := bytes.NewReader(bin)
-	dec := json.NewDecoder(rd)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var t map[string]int

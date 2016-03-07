@@ -37,10 +37,10 @@ err := binny.Unmarshal(bytes, &val)
 
 ## TODO
 
-- Allow generic decoding, like json.
-- Optimize Marshal/Unmarshal and use a pool.
+- Allow generic decoding, (aka `var v interface{}; Unmarshal(b, &v)`), like JSON.
+- ~~Optimize Marshal/Unmarshal and use a pool.~~
 - More tests, specifically for decoding.
-- Make this read me actually readable by humans.
+- Make this readme actually readable by humans.
 
 ## Format
 | type | size (bytes) |
