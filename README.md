@@ -1,6 +1,27 @@
 # binny.v2
 Extremely simple binary Marshaler/Unmarshaler.
 
+Due to the nature of the format, it supports streaming very well as long as both machines support the same endiness.
+
+## Usage
+
+### Encoding:
+```
+enc := binny.NewEncoder(w)
+val := SomeStruct{.........}
+if err := enc.Encode(&val); err != nil {
+	// handle
+}
+```
+
+## Decoding
+```
+dec := binny.NewDecoder(r)
+var val SomeStruct
+if err := dec.Decode(&val); err != nil {
+	// handle err
+}
+```
 
 ## TODO
 
@@ -10,6 +31,14 @@ Extremely simple binary Marshaler/Unmarshaler.
 - Make this read me actually readable by humans.
 
 ## Format
+| type | size (bytes) |
+| ---- | ---- |
+| complex128 | 16 |
+| int, uint | 1-8 |
+| float32 | 4 |
+| float64, complex64 | 8 |
+| bool, struct{} | 1 |
+| varint, varuint | 1-10 |
 
 ```
 entry = [field-type][value]
