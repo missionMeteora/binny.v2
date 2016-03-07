@@ -1,0 +1,304 @@
+package binny
+
+import (
+	"bufio"
+	"bytes"
+	"encoding"
+	"encoding/gob"
+	"io"
+	"math"
+	"reflect"
+	"unsafe"
+)
+
+const DefaultEncoderBufferSize = 4096
+
+// Marshaler is the interface implemented by objects that can marshal themselves into a binary representation.
+// Implementing this bypasses reflection and is generally faster but not nessecery optimized.
+type Marshaler interface {
+	MarshalBinny(enc *Encoder) error
+}
+
+type Encoder struct {
+	w         *bufio.Writer
+	hasWriter bool
+}
+
+// NewEncoder returns a new encoder with the DefaultEncoderBufferSize
+func NewEncoder(w io.Writer) *Encoder {
+	return NewEncoderSize(w, DefaultEncoderBufferSize)
+}
+
+// NewEncoder returns a new encoder with the specific buffer size, minimum is 24 bytes.
+func NewEncoderSize(w io.Writer, sz int) *Encoder {
+	if sz < 24 {
+		sz = 24
+	}
+	return &Encoder{
+		w: bufio.NewWriterSize(w, sz),
+
+		hasWriter: w != nil,
+	}
+}
+
+func (enc *Encoder) Reset(w io.Writer) {
+	enc.Flush()
+	enc.w.Reset(w)
+}
+
+func (enc *Encoder) writeType(t Type) error {
+	return enc.w.WriteByte(byte(t))
+}
+
+func (enc *Encoder) WriteVarUint(x uint64) (err error) {
+	enc.writeType(VarUint)
+	return enc.writeVarUint(x)
+}
+
+func (enc *Encoder) writeVarUint(x uint64) (err error) {
+	for x >= 0x80 {
+		enc.w.WriteByte(byte(x) | 0x80)
+		x >>= 7
+	}
+	err = enc.w.WriteByte(byte(x))
+	return
+}
+
+func (enc *Encoder) WriteVarInt(x int64) (err error) {
+	enc.writeType(VarInt)
+	return enc.writeVarInt(x)
+}
+
+func (enc *Encoder) writeVarInt(x int64) error {
+	ux := uint64(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+	return enc.writeVarUint(ux)
+}
+
+func (enc *Encoder) WriteString(v string) error {
+	enc.writeType(String)
+	enc.writeLen(len(v))
+	_, err := enc.w.WriteString(v)
+	return err
+}
+
+func (enc *Encoder) WriteBytes(v []byte) error {
+	enc.writeType(ByteSlice)
+	enc.writeLen(len(v))
+	_, err := enc.Write(v)
+	return err
+}
+
+func (enc *Encoder) Encode(v interface{}) error {
+	switch v := v.(type) {
+	case Marshaler:
+		return v.MarshalBinny(enc)
+	case encoding.BinaryMarshaler:
+		return enc.WriteBinary(v)
+	case gob.GobEncoder:
+		return enc.WriteGob(v)
+	case string:
+		return enc.WriteString(v)
+	case []byte:
+		return enc.WriteBytes(v)
+	case int64:
+		return enc.WriteInt(int64(v))
+	case int32:
+		return enc.WriteInt(int64(v))
+	case int16:
+		return enc.WriteInt(int64(v))
+	case int8:
+		return enc.WriteInt8(v)
+	case int:
+		return enc.WriteInt(int64(v))
+	case uint64:
+		return enc.WriteUint(uint64(v))
+	case uint32:
+		return enc.WriteUint(uint64(v))
+	case uint16:
+		return enc.WriteUint(uint64(v))
+	case uint8:
+		return enc.WriteUint8(v)
+	case uint:
+		return enc.WriteUint(uint64(v))
+	case float32:
+		return enc.WriteFloat32(v)
+	case float64:
+		return enc.WriteFloat64(v)
+	case complex64:
+		return enc.WriteComplex64(v)
+	case complex128:
+		return enc.WriteComplex128(v)
+	case bool:
+		return enc.WriteBool(v)
+	}
+	return enc.EncodeValue(reflect.ValueOf(v))
+}
+
+func (enc *Encoder) EncodeValue(v reflect.Value) error {
+	fn := typeEncoder(v.Type())
+	return fn(enc, v)
+}
+
+// WriteUint writes v in the smallest possible native size
+func (enc *Encoder) WriteUint(v uint64) error {
+	if v <= math.MaxUint8 {
+		return enc.WriteUint8(uint8(v))
+	}
+	if v <= math.MaxUint16 {
+		return enc.WriteUint16(uint16(v))
+	}
+	if v <= math.MaxUint32 {
+		return enc.WriteUint32(uint32(v))
+	}
+	return enc.WriteUint64(v)
+}
+
+// WriteInt writes u in the smallest possible native size
+func (enc *Encoder) WriteInt(v int64) error {
+	u := v
+	if u < 0 {
+		u = -u
+	}
+	if u <= math.MaxInt8 {
+		return enc.WriteInt8(int8(u))
+	}
+	if u <= math.MaxInt16 {
+		return enc.WriteInt16(int16(v))
+	}
+	if u <= math.MaxInt32 {
+		return enc.WriteInt32(int32(v))
+	}
+	return enc.WriteInt64(v)
+}
+
+func (enc *Encoder) WriteBool(v bool) error {
+	if v {
+		return enc.writeType(BoolTrue)
+	}
+	return enc.writeType(BoolFalse)
+
+}
+
+func (enc *Encoder) WriteInt8(v int8) (err error) {
+	enc.writeType(Int8)
+	return enc.w.WriteByte(byte(v))
+}
+
+func (enc *Encoder) WriteUint8(v uint8) (err error) {
+	enc.writeType(Uint8)
+	return enc.w.WriteByte(v)
+}
+
+func (enc *Encoder) WriteByte(v byte) (err error) {
+	return enc.WriteUint8(v)
+}
+
+func (enc *Encoder) WriteUint16(v uint16) error {
+	enc.writeType(Uint16)
+	_, err := enc.Write((*[2]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteInt16(v int16) error {
+	enc.writeType(Int16)
+	_, err := enc.Write((*[2]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteUint32(v uint32) error {
+	enc.writeType(Uint32)
+	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteInt32(v int32) error {
+	enc.writeType(Int32)
+	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteUint64(v uint64) error {
+	enc.writeType(Uint64)
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteInt64(v int64) error {
+	enc.writeType(Int64)
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteFloat32(v float32) error {
+	enc.writeType(Float32)
+	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteFloat64(v float64) error {
+	enc.writeType(Float64)
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteComplex64(v complex64) error {
+	enc.writeType(Complex64)
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteComplex128(v complex128) error {
+	enc.writeType(Complex128)
+	_, err := enc.Write((*[16]byte)(unsafe.Pointer(&v))[:])
+	return err
+}
+
+func (enc *Encoder) WriteBinary(v encoding.BinaryMarshaler) error {
+	b, err := v.MarshalBinary()
+	if err != nil || len(b) == 0 {
+		return err
+	}
+	enc.writeType(Binary)
+	enc.writeLen(len(b))
+	_, err = enc.Write(b)
+	return err
+}
+
+func (enc *Encoder) WriteGob(v gob.GobEncoder) error {
+	b, err := v.GobEncode()
+	if err != nil || len(b) == 0 {
+		return err
+	}
+	enc.writeType(Gob)
+	enc.writeLen(len(b))
+	_, err = enc.Write(b)
+	return err
+}
+
+func (enc *Encoder) Write(p []byte) (n int, err error) {
+	return enc.w.Write(p)
+}
+
+func (enc *Encoder) Flush() error {
+	if enc.hasWriter {
+		return enc.w.Flush()
+	}
+	return nil
+}
+
+func (enc *Encoder) writeLen(ln int) error {
+	return enc.WriteUint(uint64(ln))
+}
+
+func Marshal(v interface{}) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	enc := NewEncoder(buf)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	err := enc.Flush()
+	return buf.Bytes(), err
+}
