@@ -31,7 +31,7 @@ type Type byte
 const (
 	Nil         Type   = iota // nil/empty type
 	BoolTrue                  // true
-	BoolFalse                 //false
+	BoolFalse                 // false
 	EmptyStruct               // struct{}
 	VarInt                    // Varint 1-10 bytes
 	Int8                      //
@@ -53,8 +53,8 @@ const (
 	Map                       //
 	Slice                     // or array
 	Interface                 // interface{}
-	Binary                    // encoding.BinaryMarshaler/BinaryUnmarshaler
-	Gob                       // encoding/gob.GobEncoder/GobDecoder
+	Binary                    // encoding BinaryMarshaler/BinaryUnmarshaler
+	Gob                       // encoding/gob GobEncoder/GobDecoder
 	EOV         = ^Nil        // end-of-value, *any* new types must be added before this line.
 )
 

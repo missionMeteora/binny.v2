@@ -51,7 +51,8 @@ func NewDecoderSize(r io.Reader, sz int) *Decoder {
 	}
 }
 
-// Reset resets the internal reader.
+// Reset discards any buffered data, resets all state, and switches
+// the buffered reader to read from r.
 func (dec *Decoder) Reset(r io.Reader) {
 	dec.r.Reset(r)
 }
@@ -62,11 +63,12 @@ func (dec *Decoder) readType() (Type, error) {
 }
 
 func (dec *Decoder) peekType() (Type, error) {
-	b, err := dec.r.Peek(1)
+	b, err := dec.r.ReadByte()
+	dec.r.UnreadByte()
 	if err != nil {
 		return 0, err
 	}
-	return Type(b[0]), err
+	return Type(b), err
 }
 
 func (dec *Decoder) expectType(et Type) error {
@@ -116,7 +118,7 @@ func (dec *Decoder) readVarInt() (int64, uint8, error) {
 	return v, 64, err
 }
 
-// ReadInt retruns an int value and the size of the int or an error.
+// ReadInt retruns an int/varint value and the size of it (8, 16, 32, 64) or an error.
 func (dec *Decoder) ReadInt() (int64, uint8, error) {
 	ft, err := dec.readType()
 	if err != nil {
@@ -165,7 +167,7 @@ func (dec *Decoder) readVarUint() (uint64, uint8, error) {
 	return v, 64, err
 }
 
-// ReadUint retruns an int value and the size of the uint or an error.
+// ReadUint retruns an uint/varuint value and the size of it (8, 16, 32, 64) or an error.
 func (dec *Decoder) ReadUint() (v uint64, sz uint8, err error) {
 	ft, err := dec.readType()
 	if err != nil {
@@ -370,11 +372,12 @@ func (dec *Decoder) decodeValue(v reflect.Value) error {
 	return fn(dec, v)
 }
 
-// Read is allows Decoder to be used as an io.Reader, note that internally this calls io.ReadFull().
+// Read allows the Decoder to be used as an io.Reader, note that internally this calls io.ReadFull().
 func (dec *Decoder) Read(p []byte) (int, error) {
 	return io.ReadFull(dec.r, p)
 }
 
+// Unmarshal is an alias for (sync.Pool'ed) NewDecoder(bytes.NewReader(b)).Decode(v)
 func Unmarshal(b []byte, v interface{}) error {
 	dec := getDec(bytes.NewReader(b))
 	err := dec.Decode(v)

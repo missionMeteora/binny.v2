@@ -19,8 +19,7 @@ type Marshaler interface {
 }
 
 type Encoder struct {
-	w         *bufio.Writer
-	hasWriter bool
+	w *bufio.Writer
 }
 
 // NewEncoder returns a new encoder with the DefaultEncoderBufferSize
@@ -35,14 +34,12 @@ func NewEncoderSize(w io.Writer, sz int) *Encoder {
 	}
 	return &Encoder{
 		w: bufio.NewWriterSize(w, sz),
-
-		hasWriter: w != nil,
 	}
 }
 
+// Reset discards any unflushed buffered data, clears any error, and
+// resets b to write its output to w.
 func (enc *Encoder) Reset(w io.Writer) {
-	enc.Flush()
-	enc.hasWriter = w != nil
 	enc.w.Reset(w)
 }
 
@@ -198,61 +195,61 @@ func (enc *Encoder) WriteByte(v byte) (err error) {
 
 func (enc *Encoder) WriteUint16(v uint16) error {
 	enc.writeType(Uint16)
-	_, err := enc.Write((*[2]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[2]byte)(unsafe.Pointer(&v))[:2:2])
 	return err
 }
 
 func (enc *Encoder) WriteInt16(v int16) error {
 	enc.writeType(Int16)
-	_, err := enc.Write((*[2]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[2]byte)(unsafe.Pointer(&v))[:2:2])
 	return err
 }
 
 func (enc *Encoder) WriteUint32(v uint32) error {
 	enc.writeType(Uint32)
-	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:4:4])
 	return err
 }
 
 func (enc *Encoder) WriteInt32(v int32) error {
 	enc.writeType(Int32)
-	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:4:4])
 	return err
 }
 
 func (enc *Encoder) WriteUint64(v uint64) error {
 	enc.writeType(Uint64)
-	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:8:8])
 	return err
 }
 
 func (enc *Encoder) WriteInt64(v int64) error {
 	enc.writeType(Int64)
-	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:8:8])
 	return err
 }
 
 func (enc *Encoder) WriteFloat32(v float32) error {
 	enc.writeType(Float32)
-	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[4]byte)(unsafe.Pointer(&v))[:4:4])
 	return err
 }
 
 func (enc *Encoder) WriteFloat64(v float64) error {
 	enc.writeType(Float64)
-	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:8:8])
 	return err
 }
 
 func (enc *Encoder) WriteComplex64(v complex64) error {
 	enc.writeType(Complex64)
-	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[8]byte)(unsafe.Pointer(&v))[:8:8])
 	return err
 }
 
 func (enc *Encoder) WriteComplex128(v complex128) error {
 	enc.writeType(Complex128)
-	_, err := enc.Write((*[16]byte)(unsafe.Pointer(&v))[:])
+	_, err := enc.Write((*[16]byte)(unsafe.Pointer(&v))[:16:16])
 	return err
 }
 
@@ -278,26 +275,27 @@ func (enc *Encoder) WriteGob(v gob.GobEncoder) error {
 	return err
 }
 
+// Write writes the contents of p into the buffer.
+// It allows the Encoder to be used as a regular io.Writer since it takes control of the original w.
 func (enc *Encoder) Write(p []byte) (n int, err error) {
 	return enc.w.Write(p)
 }
 
+// Flush writes any buffered data to the underlying io.Writer.
 func (enc *Encoder) Flush() error {
-	if enc.hasWriter {
-		return enc.w.Flush()
-	}
-	return nil
+	return enc.w.Flush()
 }
 
 func (enc *Encoder) writeLen(ln int) error {
 	return enc.WriteUint(uint64(ln))
 }
 
+// Marshal is an alias for (sync.Pool'ed) NewEncoder(bytes.NewBuffer()).Encode(v)
 func Marshal(v interface{}) ([]byte, error) {
 	enc := getEncBuffer()
 	err := enc.e.Encode(v)
 	enc.e.Flush()
-	b := []byte(enc.b.String())
+	b := []byte(enc.b.String()) // have to create a copy sadly :(
 	putEncBuffer(enc)
 	return b, err
 }
