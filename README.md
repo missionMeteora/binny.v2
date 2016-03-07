@@ -1,4 +1,5 @@
-# binny.v2
+# binny.v2 [![GoDoc](https://godoc.org/github.com/missionMeteora/binny.v2?status.svg)](https://godoc.org/github.com/missionMeteora/binny.v2) ![Status](https://img.shields.io/badge/status-beta-yellow.svg) [![Build Status](https://travis-ci.org/missionMeteora/binny.v2.svg?branch=master)](https://travis-ci.org/missionMeteora/binny.v2)
+
 Extremely simple binary Marshaler/Unmarshaler.
 
 Due to the nature of the format, it supports streaming very well as long as both machines support the same endianness.
