@@ -2,6 +2,7 @@ package binny
 
 import (
 	"bufio"
+	"bytes"
 	"encoding"
 	"encoding/binary"
 	"encoding/gob"
@@ -352,4 +353,8 @@ func (dec *Decoder) DecodeValue(v reflect.Value) error {
 
 func (dec *Decoder) Read(p []byte) (int, error) {
 	return io.ReadFull(dec.r, p)
+}
+
+func Unmarshal(b []byte, v interface{}) error {
+	return NewDecoder(bytes.NewReader(b)).Decode(v)
 }

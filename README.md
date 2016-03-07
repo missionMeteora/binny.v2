@@ -1,26 +1,37 @@
 # binny.v2
 Extremely simple binary Marshaler/Unmarshaler.
 
-Due to the nature of the format, it supports streaming very well as long as both machines support the same endiness.
+Due to the nature of the format, it supports streaming very well as long as both machines support the same endianness.
 
 ## Usage
 
 ### Encoding:
 ```
-enc := binny.NewEncoder(w)
 val := SomeStruct{.........}
+
+enc := binny.NewEncoder(w)
 if err := enc.Encode(&val); err != nil {
-	// handle
+	// handle err
 }
+enc.Flush() // Flush is needed since we use `bufio.Writer` internally.
+
+// or
+
+data, err := binny.Marshal(val)
 ```
 
 ## Decoding
 ```
-dec := binny.NewDecoder(r)
 var val SomeStruct
+
+dec := binny.NewDecoder(r)
 if err := dec.Decode(&val); err != nil {
 	// handle err
 }
+
+// or
+
+err := binny.Unmarshal(bytes, &val)
 ```
 
 ## TODO
@@ -54,7 +65,7 @@ switch(field-type) {
 		// fields with default value / nil are omited,
 		// keep that in mind if you marshal a struct and unmarshal it to a map
 		value = [stringEntry(field0Name)][entry(field0Value)]...[stringEntry(fieldNameN)][entry(fieldValueN)][EOV]
-	case int, int8, int16, int32, int64, uint*:
+	case int*, uint*:
 		field-type = [smallest type to fit the value]
 		value = [the value in machine-dependent-format, most likely will change to LE at one point]
 }
