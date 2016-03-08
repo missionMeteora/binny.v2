@@ -131,10 +131,10 @@ func (enc *Encoder) Encode(v interface{}) error {
 	case bool:
 		return enc.WriteBool(v)
 	}
-	return enc.EncodeValue(reflect.ValueOf(v))
+	return enc.encodeValue(reflect.ValueOf(v))
 }
 
-func (enc *Encoder) EncodeValue(v reflect.Value) error {
+func (enc *Encoder) encodeValue(v reflect.Value) error {
 	fn := typeEncoder(v.Type())
 	return fn(enc, v)
 }

@@ -13,7 +13,7 @@ var pools = struct {
 	enc: sync.Pool{
 		New: func() interface{} {
 			buf := bytes.NewBuffer(make([]byte, 0, DefaultEncoderBufferSize))
-			return &encBuffer{b: buf, e: NewEncoder(nil)}
+			return &encBuffer{b: buf, e: NewEncoder(buf)}
 		},
 	},
 	dec: sync.Pool{
@@ -30,7 +30,6 @@ type encBuffer struct {
 
 func getEncBuffer() *encBuffer {
 	eb := pools.enc.Get().(*encBuffer)
-	eb.e.Reset(eb.b)
 	return eb
 }
 
