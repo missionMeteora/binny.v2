@@ -41,6 +41,8 @@ err := binny.Unmarshal(bytes, &val)
 - ~~Optimize Marshal/Unmarshal and use a pool.~~
 - More tests, specifically for decoding.
 - Make this readme actually readable by humans.
+- Clean up the tests.
+- Drop unsafe operations with numbers once 1.7 gets released.
 
 ## Format
 | type | size (bytes) |

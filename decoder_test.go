@@ -58,18 +58,15 @@ func TestDecoder(t *testing.T) {
 			}
 			if s, ok := dt.in.(*S); ok {
 				cp := *s
-				s = &cp
-				s.Ignore = ""
-				if reflect.DeepEqual(s, v.Interface()) {
+				cp.Ignore = ""
+				if reflect.DeepEqual(&cp, v.Interface()) {
 					goto OK
 				}
 			}
 			t.Fatalf("%15s: failed\nexp: %+v\ngot: %+v", dt.name, dt.in, v)
 		}
 	OK:
-		if v := v.Interface(); testing.Verbose() {
-			t.Logf("%15s: %T(%+v)", dt.name, v, v)
-		}
+		t.Logf("%15s: %T(%+v)", dt.name, v, v)
 	}
 }
 

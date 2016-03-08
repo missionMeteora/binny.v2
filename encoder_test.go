@@ -60,9 +60,7 @@ func TestEncoder(t *testing.T) {
 		if bytes.Compare(et.exp.b, v) != 0 {
 			t.Fatalf("%10s: failed\nexp: %v\ngot: %v", et.name, et.exp.b, v)
 		}
-		if testing.Verbose() {
-			t.Logf("%10s, blen=%-03d: %s", et.name, len(et.exp.b), "{"+strings.Join(et.exp.in, ", ")+"}")
-		}
+		t.Logf("%10s, blen=%-03d: %s", et.name, len(et.exp.b), "{"+strings.Join(et.exp.in, ", ")+"}")
 	}
 }
 
