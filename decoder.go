@@ -62,13 +62,10 @@ func (dec *Decoder) readType() (Type, error) {
 	return Type(b), err
 }
 
-func (dec *Decoder) peekType() (Type, error) {
-	b, err := dec.r.ReadByte()
+func (dec *Decoder) peekType() Type {
+	b, _ := dec.r.ReadByte()
 	dec.r.UnreadByte()
-	if err != nil {
-		return 0, err
-	}
-	return Type(b), err
+	return Type(b)
 }
 
 func (dec *Decoder) expectType(et Type) error {
@@ -90,100 +87,131 @@ func (dec *Decoder) ReadBool() (bool, error) {
 	return false, DecoderTypeError{"Bool", ft}
 }
 
-func (dec *Decoder) readInt8() (int64, uint8, error) {
+func (dec *Decoder) ReadInt8() (int8, error) {
+	if err := dec.expectType(Int8); err != nil {
+		return 0, err
+	}
 	b, err := dec.r.ReadByte()
-	return int64(int8(b)), 8, err
+	return int8(b), err
 }
 
-func (dec *Decoder) readInt16() (int64, uint8, error) {
+func (dec *Decoder) ReadInt16() (int16, error) {
+	if err := dec.expectType(Int16); err != nil {
+		return 0, err
+	}
 	buf := dec.buf[:2]
 	_, err := dec.Read(buf)
-	return int64(*(*int16)(unsafe.Pointer(&buf[0]))), 16, err
+	return *(*int16)(unsafe.Pointer(&buf[0])), err
 }
 
-func (dec *Decoder) readInt32() (int64, uint8, error) {
+func (dec *Decoder) ReadInt32() (int32, error) {
+	if err := dec.expectType(Int32); err != nil {
+		return 0, err
+	}
 	buf := dec.buf[:4]
 	_, err := dec.Read(buf)
-	return int64(*(*int32)(unsafe.Pointer(&buf[0]))), 32, err
+	return *(*int32)(unsafe.Pointer(&buf[0])), err
 }
 
-func (dec *Decoder) readInt64() (int64, uint8, error) {
+func (dec *Decoder) ReadInt64() (int64, error) {
+	if err := dec.expectType(Int64); err != nil {
+		return 0, err
+	}
 	buf := dec.buf[:8]
 	_, err := dec.Read(buf)
-	return int64(*(*int64)(unsafe.Pointer(&buf[0]))), 32, err
+	return *(*int64)(unsafe.Pointer(&buf[0])), err
 }
 
-func (dec *Decoder) readVarInt() (int64, uint8, error) {
-	v, err := binary.ReadVarint(dec.r)
-	return v, 64, err
+func (dec *Decoder) ReadVarInt() (int64, error) {
+	if err := dec.expectType(VarInt); err != nil {
+		return 0, err
+	}
+	return binary.ReadVarint(dec.r)
 }
 
 // ReadInt retruns an int/varint value and the size of it (8, 16, 32, 64) or an error.
 func (dec *Decoder) ReadInt() (int64, uint8, error) {
-	ft, err := dec.readType()
-	if err != nil {
-		return 0, 0, err
-	}
+	ft := dec.peekType()
 	switch ft {
 	case Int8:
-		return dec.readInt8()
+		v, err := dec.ReadInt8()
+		return int64(v), 8, err
 	case Int16:
-		return dec.readInt16()
+		v, err := dec.ReadInt16()
+		return int64(v), 16, err
 	case Int32:
-		return dec.readInt32()
+		v, err := dec.ReadInt32()
+		return int64(v), 32, err
 	case Int64:
-		return dec.readInt64()
+		v, err := dec.ReadInt64()
+		return v, 64, err
 	case VarInt:
-		return dec.readVarInt()
+		v, err := dec.ReadVarInt()
+		return v, 64, err
 	}
 	return 0, 0, DecoderTypeError{"int", ft}
 }
 
-func (dec *Decoder) readUint8() (uint64, uint8, error) {
-	b, err := dec.r.ReadByte()
-	return uint64(b), 8, err
+func (dec *Decoder) ReadUint8() (uint8, error) {
+	if err := dec.expectType(Uint8); err != nil {
+		return 0, err
+	}
+	return dec.r.ReadByte()
 }
 
-func (dec *Decoder) readUint16() (uint64, uint8, error) {
+func (dec *Decoder) ReadUint16() (uint16, error) {
+	if err := dec.expectType(Uint16); err != nil {
+		return 0, err
+	}
 	buf := dec.buf[:2]
 	_, err := dec.Read(buf)
-	return uint64(*(*uint16)(unsafe.Pointer(&buf[0]))), 16, err
+	return *(*uint16)(unsafe.Pointer(&buf[0])), err
 }
 
-func (dec *Decoder) readUint32() (uint64, uint8, error) {
+func (dec *Decoder) ReadUint32() (uint32, error) {
+	if err := dec.expectType(Uint32); err != nil {
+		return 0, err
+	}
 	buf := dec.buf[:4]
 	_, err := dec.Read(buf)
-	return uint64(*(*uint32)(unsafe.Pointer(&buf[0]))), 32, err
+	return *(*uint32)(unsafe.Pointer(&buf[0])), err
 }
 
-func (dec *Decoder) readUint64() (uint64, uint8, error) {
+func (dec *Decoder) ReadUint64() (uint64, error) {
+	if err := dec.expectType(Uint64); err != nil {
+		return 0, err
+	}
 	buf := dec.buf[:8]
 	_, err := dec.Read(buf)
-	return *(*uint64)(unsafe.Pointer(&buf[0])), 32, err
+	return *(*uint64)(unsafe.Pointer(&buf[0])), err
 }
 
-func (dec *Decoder) readVarUint() (uint64, uint8, error) {
-	v, err := binary.ReadUvarint(dec.r)
-	return v, 64, err
+func (dec *Decoder) ReadVarUint() (uint64, error) {
+	if err := dec.expectType(VarUint); err != nil {
+		return 0, err
+	}
+	return binary.ReadUvarint(dec.r)
 }
 
 // ReadUint retruns an uint/varuint value and the size of it (8, 16, 32, 64) or an error.
 func (dec *Decoder) ReadUint() (v uint64, sz uint8, err error) {
-	ft, err := dec.readType()
-	if err != nil {
-		return 0, 0, err
-	}
+	ft := dec.peekType()
 	switch ft {
 	case Uint8:
-		return dec.readUint8()
+		v, err := dec.ReadUint8()
+		return uint64(v), 8, err
 	case Uint16:
-		return dec.readUint16()
+		v, err := dec.ReadUint16()
+		return uint64(v), 16, err
 	case Uint32:
-		return dec.readUint32()
+		v, err := dec.ReadUint32()
+		return uint64(v), 32, err
 	case Uint64:
-		return dec.readUint64()
+		v, err := dec.ReadUint64()
+		return v, 64, err
 	case VarUint:
-		return dec.readVarUint()
+		v, err := dec.ReadVarUint()
+		return v, 64, err
 	}
 	return 0, 0, DecoderTypeError{"uint", ft}
 }
