@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -289,26 +290,27 @@ func (s *SAll) NotEq(t *testing.T, o *SAll) (errored bool) {
 }
 
 func TestMortalKombat(t *testing.T) {
-	//rnd, typ := rand.New(rand.NewSource(42)), reflect.TypeOf(&SAll{})
+	cfg := &quick.Config{
+		Rand: rand.New(rand.NewSource(42)),
+	}
 	check := func(s *SAll) bool {
 		if s == nil {
 			return true
 		}
 		b, err := Marshal(s)
 		if err != nil {
-			t.Log(err)
 			t.Error(err)
 			return false
 		}
 		var s2 SAll
 		if err = Unmarshal(b, &s2); err != nil {
-			t.Fatal(err)
+			t.Error(err)
 			return false
 		}
 		return !s.NotEq(t, &s2)
 	}
-	for i := 0; i < 1000; i++ {
-		if err := quick.Check(check, nil); err != nil {
+	for i := 0; i < 1e4; i++ {
+		if err := quick.Check(check, cfg); err != nil {
 			t.Fatal(err)
 		}
 	}
