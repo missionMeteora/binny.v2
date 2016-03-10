@@ -112,6 +112,30 @@ func benchDecoder(b *testing.B, o interface{}) {
 	b.SetBytes(int64(len(bin)))
 }
 
+func benchDecoderIface(b *testing.B, o interface{}) {
+	bin, _ := Marshal(o)
+	dec := NewDecoder(nil)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		dec.Reset(bytes.NewReader(bin))
+		var s SI
+		if err := dec.Decode(&s); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.SetBytes(int64(len(bin)))
+}
+
+func BenchmarkUnmarshalerBig(b *testing.B) {
+	tmp := SI(benchVal)
+	benchDecoderIface(b, &tmp)
+}
+
+func BenchmarkUnmarshalerSmall(b *testing.B) {
+	tmp := SI(*benchVal.S.S.S)
+	benchDecoderIface(b, &tmp)
+}
+
 func BenchmarkDecoderBig(b *testing.B) {
 	if testing.Short() {
 		b.Skip("not supported on short")

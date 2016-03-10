@@ -6,12 +6,12 @@ import (
 	"bytes"
 	"testing"
 
-	OB "github.com/missionMeteora/binny"
+	v1 "github.com/missionMeteora/binny"
 )
 
 func benchEncoderV1(b *testing.B, o interface{}) {
 	buf := bytes.NewBuffer(make([]byte, 0, 4096))
-	enc := OB.NewEncoder(buf)
+	enc := v1.NewEncoder(buf)
 	b.ResetTimer()
 	var ln int64
 	for i := 0; i < b.N; i++ {
@@ -25,10 +25,10 @@ func benchEncoderV1(b *testing.B, o interface{}) {
 }
 
 func benchDecoderV1(b *testing.B, o interface{}) {
-	bin, _ := OB.Marshal(o)
+	bin, _ := v1.Marshal(o)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		dec := OB.NewDecoder(bytes.NewReader(bin))
+		dec := v1.NewDecoder(bytes.NewReader(bin))
 		var s S
 		if err := dec.Decode(&s); err != nil {
 			b.Fatal(err)
@@ -37,10 +37,8 @@ func benchDecoderV1(b *testing.B, o interface{}) {
 	b.SetBytes(int64(len(bin)))
 }
 
-func BenchmarkEncoderV1Big(b *testing.B) { benchEncoderV1(b, &benchVal) }
-
-func BenchmarkDecoderV1Big(b *testing.B) { benchDecoderV1(b, &benchVal) }
-
-func BenchmarkEncoderV1Small(b *testing.B) { benchEncoderV1(b, benchVal.S.S.S) }
-
+func BenchmarkDecoderV1Big(b *testing.B)   { benchDecoderV1(b, &benchVal) }
 func BenchmarkDecoderV1Small(b *testing.B) { benchDecoderV1(b, benchVal.S.S.S) }
+
+func BenchmarkEncoderV1Big(b *testing.B)   { benchEncoderV1(b, &benchVal) }
+func BenchmarkEncoderV1Small(b *testing.B) { benchEncoderV1(b, benchVal.S.S.S) }

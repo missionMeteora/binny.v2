@@ -214,7 +214,7 @@ func (sd sliceDecoder) decode(d *Decoder, v reflect.Value) error {
 	dec := typeDecoder(sd.t)
 	for i := 0; i < int(ln); i++ {
 		// this is a bug
-		if nt, _ := d.peekType(); nt == Nil {
+		if d.peekType() == Nil {
 			d.readType()
 			continue
 		}
@@ -299,7 +299,7 @@ func (md mapDecoder) decode(d *Decoder, v reflect.Value) error {
 		if err = kdec(d, key); err != nil {
 			return err
 		}
-		if nt, _ := d.peekType(); nt == Nil {
+		if d.peekType() == Nil {
 			v.SetMapIndex(key, reflect.Zero(vt))
 			d.readType()
 			continue

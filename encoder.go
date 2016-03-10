@@ -255,7 +255,7 @@ func (enc *Encoder) WriteComplex128(v complex128) error {
 
 func (enc *Encoder) WriteBinary(v encoding.BinaryMarshaler) error {
 	b, err := v.MarshalBinary()
-	if err != nil || len(b) == 0 {
+	if err != nil {
 		return err
 	}
 	enc.writeType(Binary)
@@ -266,7 +266,7 @@ func (enc *Encoder) WriteBinary(v encoding.BinaryMarshaler) error {
 
 func (enc *Encoder) WriteGob(v gob.GobEncoder) error {
 	b, err := v.GobEncode()
-	if err != nil || len(b) == 0 {
+	if err != nil {
 		return err
 	}
 	enc.writeType(Gob)

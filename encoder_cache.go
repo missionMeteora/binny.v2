@@ -57,15 +57,15 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
 	}
 
 	if t.Kind() != reflect.Ptr && allowAddr {
-		t := reflect.PtrTo(t)
-		if t.Implements(marshalerType) {
-			return addrEncoder(newTypeEncoder(t, false))
+		ft := reflect.PtrTo(t)
+		if ft.Implements(marshalerType) {
+			return addrEncoder(marshalerEncoder, newTypeEncoder(t, false))
 		}
-		if t.Implements(binaryMarshalerType) {
-			return addrEncoder(newTypeEncoder(t, false))
+		if ft.Implements(binaryMarshalerType) {
+			return addrEncoder(binaryMarshalerEncoder, newTypeEncoder(t, false))
 		}
-		if t.Implements(gobEncoderType) {
-			return addrEncoder(newTypeEncoder(t, false))
+		if ft.Implements(gobEncoderType) {
+			return addrEncoder(gobEncoder, newTypeEncoder(t, false))
 		}
 	}
 
@@ -272,8 +272,11 @@ func ptrEncoder(fn encoderFunc) encoderFunc {
 		return fn(e, v.Elem())
 	}
 }
-func addrEncoder(fn encoderFunc) encoderFunc {
+func addrEncoder(canAddrFn, noAddrFn encoderFunc) encoderFunc {
 	return func(e *Encoder, v reflect.Value) error {
-		return fn(e, v.Addr())
+		if v.CanAddr() {
+			return canAddrFn(e, v.Addr())
+		}
+		return noAddrFn(e, v)
 	}
 }

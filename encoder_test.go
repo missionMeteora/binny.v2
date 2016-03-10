@@ -103,6 +103,16 @@ func benchEncoder(b *testing.B, o interface{}) {
 	b.SetBytes(ln)
 }
 
+func BenchmarkMarshalerBig(b *testing.B) {
+	tmp := SI(benchVal)
+	benchEncoder(b, &tmp)
+}
+
+func BenchmarkMarshalerSmall(b *testing.B) {
+	tmp := SI(*benchVal.S.S.S)
+	benchEncoder(b, &tmp)
+}
+
 func BenchmarkEncoderBig(b *testing.B) {
 	if testing.Short() {
 		b.Skip("not supported on short")

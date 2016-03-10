@@ -43,6 +43,96 @@ type S struct {
 	Z      uint     `json:",omitempty"`
 }
 
+type SI S
+
+var _ interface {
+	Marshaler
+	Unmarshaler
+} = (*SI)(nil)
+
+func (s *SI) MarshalBinny(enc *Encoder) error {
+	enc.WriteUint8(0x01) // version
+	enc.WriteString(s.Str)
+	enc.WriteInt8(s.I8)
+	enc.WriteUint8(s.U8)
+	enc.WriteInt16(s.I16)
+	enc.WriteUint16(s.U16)
+	enc.WriteInt32(s.I32)
+	enc.WriteUint32(s.U32)
+	enc.WriteInt64(s.I64)
+	enc.WriteUint64(s.U64)
+	enc.WriteFloat32(s.F32)
+	enc.WriteFloat64(s.F64)
+	enc.WriteGob(s.Bi)
+	if s.S == nil {
+		enc.WriteBool(false)
+	} else {
+		enc.WriteBool(true)
+		tmp := SI(*s.S)
+		tmp.MarshalBinny(enc)
+	}
+	return enc.WriteUint(uint64(s.Z))
+}
+
+func (s *SI) UnmarshalBinny(dec *Decoder) (err error) {
+	var v uint8
+	if v, err = dec.ReadUint8(); err != nil {
+		return err
+	}
+	if v != 0x01 {
+		return fmt.Errorf("invalid version")
+	}
+	if s.Str, err = dec.ReadString(); err != nil {
+		return
+	}
+	if s.I8, err = dec.ReadInt8(); err != nil {
+		return
+	}
+	if s.U8, err = dec.ReadUint8(); err != nil {
+		return
+	}
+	if s.I16, err = dec.ReadInt16(); err != nil {
+		return
+	}
+	if s.U16, err = dec.ReadUint16(); err != nil {
+		return
+	}
+	if s.I32, err = dec.ReadInt32(); err != nil {
+		return
+	}
+	if s.U32, err = dec.ReadUint32(); err != nil {
+		return
+	}
+	if s.I64, err = dec.ReadInt64(); err != nil {
+		return
+	}
+	if s.U64, err = dec.ReadUint64(); err != nil {
+		return
+	}
+	if s.F32, err = dec.ReadFloat32(); err != nil {
+		return
+	}
+	if s.F64, err = dec.ReadFloat64(); err != nil {
+		return
+	}
+	s.Bi = big.NewInt(0)
+	if err = dec.ReadGob(s.Bi); err != nil {
+		return
+	}
+	b, _ := dec.ReadBool()
+	if b {
+		tmp := SI{}
+		if err = tmp.UnmarshalBinny(dec); err != nil {
+			return
+		}
+		v := S(tmp)
+		s.S = &v
+	}
+	z, _, err := dec.ReadUint()
+	s.Z = uint(z)
+	return err
+}
+
 var le = binary.LittleEndian
 
 type expValue struct {

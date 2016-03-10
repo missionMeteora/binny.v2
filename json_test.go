@@ -9,25 +9,6 @@ import (
 	"testing"
 )
 
-func BenchmarkJSONEncodeMap(b *testing.B) {
-	m := map[string]int{}
-	for i := 0; i < 1000; i++ {
-		m["x"+strconv.Itoa(i)+"x"] = i
-	}
-	buf := bytes.NewBuffer(nil)
-	enc := json.NewEncoder(buf)
-	enc.Encode(m)
-	b.SetBytes(int64(buf.Len()))
-	buf.Reset()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := enc.Encode(m); err != nil {
-			b.Fatal(err)
-		}
-		buf.Reset()
-	}
-}
-
 func BenchmarkJSONDecodeMap(b *testing.B) {
 	m := map[string]int{}
 	for i := 0; i < 1000; i++ {
@@ -52,6 +33,25 @@ func BenchmarkJSONDecodeMap(b *testing.B) {
 		rd.Seek(0, 0)
 	}
 	b.SetBytes(int64(len(bin)))
+}
+
+func BenchmarkJSONEncodeMap(b *testing.B) {
+	m := map[string]int{}
+	for i := 0; i < 1000; i++ {
+		m["x"+strconv.Itoa(i)+"x"] = i
+	}
+	buf := bytes.NewBuffer(nil)
+	enc := json.NewEncoder(buf)
+	enc.Encode(m)
+	b.SetBytes(int64(buf.Len()))
+	buf.Reset()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := enc.Encode(m); err != nil {
+			b.Fatal(err)
+		}
+		buf.Reset()
+	}
 }
 
 func benchEncodeJSON(b *testing.B, o interface{}) {
@@ -81,7 +81,8 @@ func benchDecodeJSON(b *testing.B, o interface{}) {
 	b.SetBytes(int64(len(j)))
 }
 
-func BenchmarkEncoderJSONBig(b *testing.B)   { benchEncodeJSON(b, &benchVal) }
-func BenchmarkEncoderJSONSmall(b *testing.B) { benchEncodeJSON(b, benchVal.S.S.S) }
 func BenchmarkDecoderJSONBig(b *testing.B)   { benchDecodeJSON(b, &benchVal) }
 func BenchmarkDecoderJSONSmall(b *testing.B) { benchDecodeJSON(b, benchVal.S.S.S) }
+
+func BenchmarkEncoderJSONBig(b *testing.B)   { benchEncodeJSON(b, &benchVal) }
+func BenchmarkEncoderJSONSmall(b *testing.B) { benchEncodeJSON(b, benchVal.S.S.S) }
