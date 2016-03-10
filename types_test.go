@@ -188,6 +188,13 @@ type SAll struct {
 	S    string
 	BS   []byte
 	M    map[string]*SAll
+	M2   map[MapKey]struct{}
+}
+
+type MapKey struct {
+	A uint16
+	B int8
+	C int8
 }
 
 func (s *SAll) NotEq(t *testing.T, o *SAll) (errored bool) {
@@ -285,6 +292,16 @@ func (s *SAll) NotEq(t *testing.T, o *SAll) (errored bool) {
 
 	for k, v := range s.M {
 		errored = errored || v.NotEq(t, o.M[k])
+	}
+
+	if len(s.M2) != len(o.M2) {
+		t.Logf("M wanted %v, got %v.", s.M, o.M)
+		errored = true
+	}
+	for k := range s.M2 {
+		if _, ok := o.M2[k]; !ok {
+			t.Logf("M2 wanted %v, got none", k)
+		}
 	}
 	return
 }

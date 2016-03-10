@@ -241,7 +241,7 @@ type structDecoder struct {
 
 func (sd structDecoder) decode(d *Decoder, v reflect.Value) error {
 	if err := d.expectType(Struct); err != nil {
-		if err, ok := err.(DecoderTypeError); ok && err.Actual == Nil {
+		if err, ok := err.(DecoderTypeError); ok && err.Actual == Nil || err.Actual == EmptyStruct {
 			return nil
 		}
 		return err
