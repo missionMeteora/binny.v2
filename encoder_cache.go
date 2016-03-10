@@ -199,6 +199,7 @@ func newSliceEncoder(t reflect.Type) encoderFunc {
 
 type mapEncoder struct {
 	kt, vt reflect.Type
+	zero   func(reflect.Value) bool
 }
 
 func (me mapEncoder) encode(e *Encoder, v reflect.Value) (err error) {
@@ -211,6 +212,10 @@ func (me mapEncoder) encode(e *Encoder, v reflect.Value) (err error) {
 		vv := v.MapIndex(k)
 		if err = kenc(e, k); err != nil {
 			return
+		}
+		if !vv.IsValid() || me.zero(vv) {
+			e.writeType(Nil)
+			continue
 		}
 		if err = venc(e, vv); err != nil {
 			return
@@ -229,7 +234,7 @@ func (bs byString) Less(i, j int) bool { return bs[i].String() < bs[j].String() 
 func newMapEncoder(t reflect.Type) encoderFunc {
 	typeEncoder(t.Key()) // cache the type
 	typeEncoder(t.Elem())
-	me := mapEncoder{t.Key(), t.Elem()}
+	me := mapEncoder{t.Key(), t.Elem(), zeroCache[t.Elem().Kind()]}
 	return me.encode
 }
 
@@ -238,11 +243,6 @@ type structEncoder struct {
 }
 
 func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
-	if !v.IsValid() {
-		e.writeType(Nil)
-		return
-	}
-
 	e.writeType(Struct)
 	for i := range se.fields {
 		tf := &se.fields[i]

@@ -291,7 +291,8 @@ func (s *SAll) NotEq(t *testing.T, o *SAll) (errored bool) {
 
 func TestMortalKombat(t *testing.T) {
 	cfg := &quick.Config{
-		Rand: rand.New(rand.NewSource(42)),
+		MaxCount: 5e5,
+		Rand:     rand.New(rand.NewSource(42)),
 	}
 	check := func(s *SAll) bool {
 		if s == nil {
@@ -309,9 +310,7 @@ func TestMortalKombat(t *testing.T) {
 		}
 		return !s.NotEq(t, &s2)
 	}
-	for i := 0; i < 1e4; i++ {
-		if err := quick.Check(check, cfg); err != nil {
-			t.Fatal(err)
-		}
+	if err := quick.Check(check, cfg); err != nil {
+		t.Fatal(err)
 	}
 }

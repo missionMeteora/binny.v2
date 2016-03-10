@@ -214,6 +214,10 @@ func (sd sliceDecoder) decode(d *Decoder, v reflect.Value) error {
 	dec := typeDecoder(sd.t)
 	for i := 0; i < int(ln); i++ {
 		// this is a bug
+		if nt, _ := d.peekType(); nt == Nil {
+			d.readType()
+			continue
+		}
 		if err = dec(d, v.Index(i)); err != nil {
 			return err
 		}
