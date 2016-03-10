@@ -1,17 +1,20 @@
 package binny
 
 import (
+	"bytes"
 	"encoding"
 	"fmt"
 	"math"
 	"math/big"
 	"reflect"
+	"testing"
 	"unsafe"
 
 	"log"
 
 	"encoding/binary"
 	"encoding/gob"
+	"testing/quick"
 )
 
 type S struct {
@@ -164,4 +167,149 @@ var benchVal = S{
 			},
 		},
 	},
+}
+
+type SAll struct {
+	I    int
+	U    uint
+	I8   int8
+	U8   uint8
+	I16  int16
+	U16  uint16
+	I32  int32
+	U32  uint32
+	I64  int64
+	U64  uint64
+	F32  float32
+	F64  float64
+	C64  complex64
+	C128 complex128
+	S    string
+	BS   []byte
+	M    map[string]*SAll
+}
+
+func (s *SAll) NotEq(t *testing.T, o *SAll) (errored bool) {
+	if s == nil && o == nil || o == s {
+		return false
+	}
+	if s == nil || o == nil {
+		t.Logf("s == nil || o == nil\n%+v\n%+v", s, o)
+		return true
+	}
+	if s.I != o.I {
+		t.Logf("I wanted %v, got %v.", s.I, o.I)
+		errored = true
+	}
+
+	if s.U != o.U {
+		t.Logf("U wanted %v, got %v.", s.U, o.U)
+		errored = true
+	}
+
+	if s.I8 != o.I8 {
+		t.Logf("I8 wanted %v, got %v.", s.I8, o.I8)
+		errored = true
+	}
+
+	if s.U8 != o.U8 {
+		t.Logf("U8 wanted %v, got %v.", s.U8, o.U8)
+		errored = true
+	}
+
+	if s.I16 != o.I16 {
+		t.Logf("I16 wanted %v, got %v.", s.I16, o.I16)
+		errored = true
+	}
+
+	if s.U16 != o.U16 {
+		t.Logf("U16 wanted %v, got %v.", s.U16, o.U16)
+		errored = true
+	}
+
+	if s.I32 != o.I32 {
+		t.Logf("I32 wanted %v, got %v.", s.I32, o.I32)
+		errored = true
+	}
+
+	if s.U32 != o.U32 {
+		t.Logf("U32 wanted %v, got %v.", s.U32, o.U32)
+		errored = true
+	}
+
+	if s.I64 != o.I64 {
+		t.Logf("I64 wanted %v, got %v.", s.I64, o.I64)
+		errored = true
+	}
+
+	if s.U64 != o.U64 {
+		t.Logf("U64 wanted %v, got %v.", s.U64, o.U64)
+		errored = true
+	}
+
+	if s.F32 != o.F32 {
+		t.Logf("F32 wanted %v, got %v.", s.F32, o.F32)
+		errored = true
+	}
+
+	if s.F64 != o.F64 {
+		t.Logf("F64 wanted %v, got %v.", s.F64, o.F64)
+		errored = true
+	}
+
+	if s.C64 != o.C64 {
+		t.Logf("C64 wanted %v, got %v.", s.C64, o.C64)
+		errored = true
+	}
+
+	if s.C128 != o.C128 {
+		t.Logf("C128 wanted %v, got %v.", s.C128, o.C128)
+		errored = true
+	}
+
+	if s.S != o.S {
+		t.Logf("S wanted %v, got %v.", s.S, o.S)
+		errored = true
+	}
+
+	if bytes.Compare(s.BS, o.BS) != 0 {
+		t.Logf("BS wanted %v, got %v.", s.BS, o.BS)
+		errored = true
+	}
+
+	if len(s.M) != len(o.M) {
+		t.Logf("M wanted %v, got %v.", s.M, o.M)
+		errored = true
+	}
+
+	for k, v := range s.M {
+		errored = errored || v.NotEq(t, o.M[k])
+	}
+	return
+}
+
+func TestMortalKombat(t *testing.T) {
+	//rnd, typ := rand.New(rand.NewSource(42)), reflect.TypeOf(&SAll{})
+	check := func(s *SAll) bool {
+		if s == nil {
+			return true
+		}
+		b, err := Marshal(s)
+		if err != nil {
+			t.Log(err)
+			t.Error(err)
+			return false
+		}
+		var s2 SAll
+		if err = Unmarshal(b, &s2); err != nil {
+			t.Fatal(err)
+			return false
+		}
+		return !s.NotEq(t, &s2)
+	}
+	for i := 0; i < 1000; i++ {
+		if err := quick.Check(check, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

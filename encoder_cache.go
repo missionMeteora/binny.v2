@@ -238,10 +238,12 @@ type structEncoder struct {
 }
 
 func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
-	e.writeType(Struct)
 	if !v.IsValid() {
-		goto end
+		e.writeType(Nil)
+		return
 	}
+
+	e.writeType(Struct)
 	for i := range se.fields {
 		tf := &se.fields[i]
 		vf := indirect(fieldByIndex(v, tf.index, false))
@@ -253,7 +255,6 @@ func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
 			return
 		}
 	}
-end:
 	e.writeType(EOV)
 	return
 }

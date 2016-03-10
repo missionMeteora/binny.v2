@@ -237,6 +237,9 @@ type structDecoder struct {
 
 func (sd structDecoder) decode(d *Decoder, v reflect.Value) error {
 	if err := d.expectType(Struct); err != nil {
+		if err, ok := err.(DecoderTypeError); ok && err.Actual == Nil {
+			return nil
+		}
 		return err
 	}
 	for {
@@ -291,6 +294,11 @@ func (md mapDecoder) decode(d *Decoder, v reflect.Value) error {
 		key := reflect.New(kt).Elem()
 		if err = kdec(d, key); err != nil {
 			return err
+		}
+		if nt, _ := d.peekType(); nt == Nil {
+			v.SetMapIndex(key, reflect.Zero(vt))
+			d.readType()
+			continue
 		}
 		val := reflect.New(vt).Elem()
 		if err = vdec(d, val); err != nil {
