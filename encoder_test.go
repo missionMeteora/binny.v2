@@ -60,7 +60,9 @@ func TestEncoder(t *testing.T) {
 		if bytes.Compare(et.exp.b, v) != 0 {
 			t.Fatalf("%10s: failed\nexp: %v\ngot: %v", et.name, et.exp.b, v)
 		}
-		t.Logf("%10s, blen=%-03d: %s", et.name, len(et.exp.b), "{"+strings.Join(et.exp.in, ", ")+"}")
+		if !testing.Short() {
+			t.Logf("%10s, blen=%-03d: %s", et.name, len(et.exp.b), "{"+strings.Join(et.exp.in, ", ")+"}")
+		}
 	}
 }
 
@@ -101,6 +103,11 @@ func benchEncoder(b *testing.B, o interface{}) {
 	b.SetBytes(ln)
 }
 
-func BenchmarkEncoderBig(b *testing.B) { benchEncoder(b, &benchVal) }
+func BenchmarkEncoderBig(b *testing.B) {
+	if testing.Short() {
+		b.Skip("not supported on short")
+	}
+	benchEncoder(b, &benchVal)
+}
 
 func BenchmarkEncoderSmall(b *testing.B) { benchEncoder(b, benchVal.S.S.S) }

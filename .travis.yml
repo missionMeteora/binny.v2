@@ -3,7 +3,8 @@ sudo: false
 
 go:
   - 1.5
+  - 1.6
   - tip
 
 script:
-  - go test -v ./...
+  - go test -v -short -bench=. -benchmem ./...

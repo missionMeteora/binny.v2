@@ -66,7 +66,9 @@ func TestDecoder(t *testing.T) {
 			t.Fatalf("%15s: failed\nexp: %+v\ngot: %+v", dt.name, dt.in, v)
 		}
 	OK:
-		t.Logf("%15s: %T(%+v)", dt.name, v, v)
+		if !testing.Short() {
+			t.Logf("%15s: %T(%+v)", dt.name, v, v)
+		}
 	}
 }
 
@@ -110,6 +112,11 @@ func benchDecoder(b *testing.B, o interface{}) {
 	b.SetBytes(int64(len(bin)))
 }
 
-func BenchmarkDecoderBig(b *testing.B) { benchDecoder(b, &benchVal) }
+func BenchmarkDecoderBig(b *testing.B) {
+	if testing.Short() {
+		b.Skip("not supported on short")
+	}
+	benchDecoder(b, &benchVal)
+}
 
 func BenchmarkDecoderSmall(b *testing.B) { benchDecoder(b, benchVal.S.S.S) }

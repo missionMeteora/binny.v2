@@ -4,19 +4,26 @@ import (
 	"bytes"
 	"encoding"
 	"fmt"
+	"log"
 	"math"
 	"math/big"
 	"math/rand"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 	"unsafe"
-
-	"log"
 
 	"encoding/binary"
 	"encoding/gob"
 	"testing/quick"
 )
+
+func init() {
+	log.SetFlags(log.Lshortfile)
+}
+
+var useQuick = !strings.HasPrefix(runtime.Version(), "go1.5") && !strings.HasPrefix(runtime.Version(), "go1.4")
 
 type S struct {
 	Str    string   `json:",omitempty"`
@@ -144,10 +151,6 @@ func autoInt(v int64) []byte {
 }
 
 var SLen = len(cachedTypeFields(reflect.TypeOf(S{})))
-
-func init() {
-	log.SetFlags(log.Lshortfile)
-}
 
 var benchVal = S{
 	I8:     1,
@@ -307,9 +310,15 @@ func (s *SAll) NotEq(t *testing.T, o *SAll) (errored bool) {
 }
 
 func TestMortalKombat(t *testing.T) {
+	if !useQuick {
+		t.Skipf("doesn't work on %v", runtime.Version())
+	}
 	cfg := &quick.Config{
-		MaxCount: 5e5,
+		MaxCount: 10000,
 		Rand:     rand.New(rand.NewSource(42)),
+	}
+	if testing.Short() {
+		cfg.MaxCount = 1000
 	}
 	check := func(s *SAll) bool {
 		if s == nil {
