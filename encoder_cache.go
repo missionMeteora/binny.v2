@@ -39,7 +39,7 @@ func typeEncoder(t reflect.Type) (fn encoderFunc) {
 	return
 }
 
-func nopeEnc(e *Encoder, v reflect.Value) error { panic("Fly, you fools!") }
+func nopeEnc(e *Encoder, v reflect.Value) error { panic(v.Type().String() + " Fly, you fools!") }
 
 // newTypeEncoder constructs an encoderFunc for a type.
 // The returned encoder only checks CanAddr when allowAddr is true.
@@ -165,7 +165,7 @@ func ifaceEncoder(e *Encoder, v reflect.Value) error {
 func invalidEncoder(*Encoder, reflect.Value) error { return ErrUnsupportedType }
 
 type sliceEncoder struct {
-	enc  encoderFunc
+	t    reflect.Type
 	zero func(reflect.Value) bool
 }
 
@@ -173,13 +173,14 @@ func (se sliceEncoder) encode(e *Encoder, v reflect.Value) (err error) {
 	ln := v.Len()
 	e.writeType(Slice)
 	e.writeLen(ln)
+	enc := typeEncoder(se.t)
 	for i := 0; i < ln; i++ {
 		vv := v.Index(i)
 		if !vv.IsValid() || se.zero(vv) { // fill the holes in an array/slice
 			e.writeType(Nil)
 			continue
 		}
-		if err = se.enc(e, vv); err != nil {
+		if err = enc(e, vv); err != nil {
 			return
 		}
 	}
@@ -191,25 +192,27 @@ func newSliceEncoder(t reflect.Type) encoderFunc {
 	if t.Kind() == reflect.Uint8 {
 		return bytesEncoder
 	}
-	se := sliceEncoder{enc: typeEncoder(t), zero: zeroCache[t.Kind()]}
+	typeEncoder(t) // cache the type
+	se := sliceEncoder{t: t, zero: zeroCache[t.Kind()]}
 	return se.encode
 }
 
 type mapEncoder struct {
-	kenc, venc encoderFunc
+	kt, vt reflect.Type
 }
 
 func (me mapEncoder) encode(e *Encoder, v reflect.Value) (err error) {
+	kenc, venc := typeEncoder(me.kt), typeEncoder(me.vt)
 	keys := v.MapKeys()
 	e.writeType(Map)
 	e.writeLen(len(keys))
 	//sort.Sort(byString(keys))
 	for _, k := range keys {
 		vv := v.MapIndex(k)
-		if err = me.kenc(e, k); err != nil {
+		if err = kenc(e, k); err != nil {
 			return
 		}
-		if err = me.venc(e, vv); err != nil {
+		if err = venc(e, vv); err != nil {
 			return
 		}
 	}
@@ -224,7 +227,9 @@ func (bs byString) Swap(i, j int)      { bs[i], bs[j] = bs[j], bs[i] }
 func (bs byString) Less(i, j int) bool { return bs[i].String() < bs[j].String() }
 
 func newMapEncoder(t reflect.Type) encoderFunc {
-	me := mapEncoder{typeEncoder(t.Key()), typeEncoder(t.Elem())}
+	typeEncoder(t.Key()) // cache the type
+	typeEncoder(t.Elem())
+	me := mapEncoder{t.Key(), t.Elem()}
 	return me.encode
 }
 
@@ -234,6 +239,9 @@ type structEncoder struct {
 
 func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
 	e.writeType(Struct)
+	if !v.IsValid() {
+		goto end
+	}
 	for i := range se.fields {
 		tf := &se.fields[i]
 		vf := indirect(fieldByIndex(v, tf.index, false))
@@ -245,6 +253,7 @@ func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
 			return
 		}
 	}
+end:
 	e.writeType(EOV)
 	return
 }

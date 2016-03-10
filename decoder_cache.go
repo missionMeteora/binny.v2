@@ -189,7 +189,7 @@ func invalidDecoder(d *Decoder, v reflect.Value) error {
 }
 
 type sliceDecoder struct {
-	dec decoderFunc
+	t reflect.Type
 }
 
 func (sd sliceDecoder) decode(d *Decoder, v reflect.Value) error {
@@ -211,10 +211,10 @@ func (sd sliceDecoder) decode(d *Decoder, v reflect.Value) error {
 			v.SetCap(ln)
 		}
 	}
-
+	dec := typeDecoder(sd.t)
 	for i := 0; i < int(ln); i++ {
 		// this is a bug
-		if err = sd.dec(d, v.Index(i)); err != nil {
+		if err = dec(d, v.Index(i)); err != nil {
 			return err
 		}
 	}
@@ -226,7 +226,8 @@ func newSliceDecoder(t reflect.Type) decoderFunc {
 	if t.Kind() == reflect.Uint8 {
 		return bytesDecoder
 	}
-	d := sliceDecoder{dec: typeDecoder(t)}
+	typeDecoder(t)
+	d := sliceDecoder{t: t}
 	return d.decode
 }
 
@@ -268,7 +269,7 @@ func newStructDecoder(t reflect.Type) decoderFunc {
 }
 
 type mapDecoder struct {
-	kdec, vdec decoderFunc
+	kt, vt reflect.Type
 }
 
 func (md mapDecoder) decode(d *Decoder, v reflect.Value) error {
@@ -285,14 +286,14 @@ func (md mapDecoder) decode(d *Decoder, v reflect.Value) error {
 	if v.IsNil() {
 		v.Set(reflect.MakeMap(t))
 	}
-
+	kdec, vdec := typeDecoder(md.kt), typeDecoder(md.vt)
 	for i, kt, vt := 0, t.Key(), t.Elem(); i < int(ln); i++ {
 		key := reflect.New(kt).Elem()
-		if err = md.kdec(d, key); err != nil {
+		if err = kdec(d, key); err != nil {
 			return err
 		}
 		val := reflect.New(vt).Elem()
-		if err = md.vdec(d, val); err != nil {
+		if err = vdec(d, val); err != nil {
 			return err
 		}
 		v.SetMapIndex(key, val)
@@ -301,7 +302,7 @@ func (md mapDecoder) decode(d *Decoder, v reflect.Value) error {
 }
 
 func newMapDecoder(t reflect.Type) decoderFunc {
-	md := mapDecoder{typeDecoder(t.Key()), typeDecoder(t.Elem())}
+	md := mapDecoder{t.Key(), t.Elem()}
 	return md.decode
 }
 

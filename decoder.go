@@ -239,12 +239,7 @@ func (dec *Decoder) readBytes(exp Type) ([]byte, error) {
 		return nil, err
 	}
 
-	var buf []byte
-	if int(sz) < len(dec.buf) {
-		buf = dec.buf[:sz]
-	} else {
-		buf = make([]byte, sz)
-	}
+	buf := make([]byte, sz)
 	_, err = io.ReadFull(dec.r, buf)
 	return buf, err
 }
