@@ -92,7 +92,7 @@ func (dec *Decoder) ReadBool() (bool, error) {
 
 func (dec *Decoder) readInt8() (int64, uint8, error) {
 	b, err := dec.r.ReadByte()
-	return int64(b), 8, err
+	return int64(int8(b)), 8, err
 }
 
 func (dec *Decoder) readInt16() (int64, uint8, error) {

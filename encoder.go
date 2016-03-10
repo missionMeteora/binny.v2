@@ -160,7 +160,7 @@ func (enc *Encoder) WriteInt(v int64) error {
 		u = -u
 	}
 	if u <= math.MaxInt8 {
-		return enc.WriteInt8(int8(u))
+		return enc.WriteInt8(int8(v))
 	}
 	if u <= math.MaxInt16 {
 		return enc.WriteInt16(int16(v))
