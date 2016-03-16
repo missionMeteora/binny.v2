@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/gob"
 	"fmt"
+	"log"
 	"reflect"
 	"sync"
 )
@@ -51,15 +52,16 @@ func typeDecoder(t reflect.Type) (fn decoderFunc) {
 func nopeDec(*Decoder, reflect.Value) error { panic("Fly, you fools!") }
 
 func newTypeDecoder(t reflect.Type) decoderFunc {
+	log.Println(t)
 	k := t.Kind()
-	if t.Implements(marshalerType) {
+	if t.Implements(unmarshalerType) {
 		if k == reflect.Ptr {
 			return newPtrDecoder(unmarshalerDecoder, false)
 		}
 		return unmarshalerDecoder
 	}
 
-	if t.Implements(binaryMarshalerType) {
+	if t.Implements(binaryUnmarshalerType) {
 		if k == reflect.Ptr {
 			return newPtrDecoder(binaryUnmarshalerDecoder, false)
 		}
@@ -74,14 +76,14 @@ func newTypeDecoder(t reflect.Type) decoderFunc {
 
 	if k != reflect.Ptr {
 		t := reflect.PtrTo(t)
-		if t.Implements(marshalerType) {
-			return newTypeDecoder(t)
+		if t.Implements(unmarshalerType) {
+			return addrDecoder(unmarshalerDecoder)
 		}
-		if t.Implements(binaryMarshalerType) {
-			return newTypeDecoder(t)
+		if t.Implements(binaryUnmarshalerType) {
+			return addrDecoder(binaryUnmarshalerDecoder)
 		}
-		if t.Implements(gobEncoderType) {
-			return newTypeDecoder(t)
+		if t.Implements(gobDecoderType) {
+			return addrDecoder(gobDecoder)
 		}
 	}
 	switch k {
@@ -330,7 +332,7 @@ func (pd ptrDecoder) decodeElem(d *Decoder, v reflect.Value) error {
 }
 
 func (pd ptrDecoder) decode(d *Decoder, v reflect.Value) error {
-	if v.IsNil() {
+	if !v.CanAddr() && v.IsNil() {
 		v.Set(reflect.New(v.Type().Elem()))
 	}
 	return pd.dec(d, v)
@@ -342,4 +344,10 @@ func newPtrDecoder(fn decoderFunc, elem bool) decoderFunc {
 		return pd.decodeElem
 	}
 	return pd.decode
+}
+
+func addrDecoder(fn decoderFunc) decoderFunc {
+	return func(d *Decoder, v reflect.Value) error {
+		return fn(d, v.Addr())
+	}
 }
