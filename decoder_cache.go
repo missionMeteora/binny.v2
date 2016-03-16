@@ -4,7 +4,6 @@ import (
 	"encoding"
 	"encoding/gob"
 	"fmt"
-	"log"
 	"reflect"
 	"sync"
 )
@@ -52,7 +51,6 @@ func typeDecoder(t reflect.Type) (fn decoderFunc) {
 func nopeDec(*Decoder, reflect.Value) error { panic("Fly, you fools!") }
 
 func newTypeDecoder(t reflect.Type) decoderFunc {
-	log.Println(t)
 	k := t.Kind()
 	if t.Implements(unmarshalerType) {
 		if k == reflect.Ptr {
@@ -332,7 +330,7 @@ func (pd ptrDecoder) decodeElem(d *Decoder, v reflect.Value) error {
 }
 
 func (pd ptrDecoder) decode(d *Decoder, v reflect.Value) error {
-	if !v.CanAddr() && v.IsNil() {
+	if v.IsNil() {
 		v.Set(reflect.New(v.Type().Elem()))
 	}
 	return pd.dec(d, v)
@@ -348,6 +346,9 @@ func newPtrDecoder(fn decoderFunc, elem bool) decoderFunc {
 
 func addrDecoder(fn decoderFunc) decoderFunc {
 	return func(d *Decoder, v reflect.Value) error {
-		return fn(d, v.Addr())
+		if v = v.Addr(); v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem().Elem()))
+		}
+		return d.Decode(v.Interface())
 	}
 }
