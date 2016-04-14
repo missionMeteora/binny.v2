@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"unsafe"
@@ -383,6 +384,8 @@ func (dec *Decoder) Decode(v interface{}) (err error) {
 	case *bool:
 		*v, err = dec.ReadBool()
 		return
+	case nil:
+		return fmt.Errorf("can't decode a nil value")
 	}
 	return dec.decodeValue(reflect.ValueOf(v))
 }
@@ -390,6 +393,9 @@ func (dec *Decoder) Decode(v interface{}) (err error) {
 func (dec *Decoder) decodeValue(v reflect.Value) error {
 	if v.Kind() != reflect.Ptr || !v.Elem().CanSet() {
 		return ErrNoPointer
+	}
+	if v.IsNil() {
+		return fmt.Errorf("can't decode a nil value: %v", v.Type())
 	}
 	fn := typeDecoder(v.Type())
 	return fn(dec, v)
