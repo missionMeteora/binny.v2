@@ -24,6 +24,12 @@ type sK struct {
 	B int
 }
 
+type sKM struct{}
+
+func (s *sKM) MarshalBinny(enc *Encoder) error {
+	return enc.WriteUint(0xFFFF)
+}
+
 var encoderTests = []struct {
 	name string
 	in   interface{}
@@ -63,6 +69,21 @@ func TestEncoder(t *testing.T) {
 		if !testing.Short() {
 			t.Logf("%10s, blen=%-03d: %s", et.name, len(et.exp.b), "{"+strings.Join(et.exp.in, ", ")+"}")
 		}
+	}
+}
+
+func TestMarshalBinny(t *testing.T) {
+	var s sKM
+	var v uint64
+	b, err := Marshal(&s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Unmarshal(b, &v); err != nil {
+		t.Fatal(err)
+	}
+	if v != 0xFFFF {
+		t.Fatalf("expected 0xFFFF, got 0x%X", v)
 	}
 }
 
