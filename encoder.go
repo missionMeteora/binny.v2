@@ -89,6 +89,7 @@ func (enc *Encoder) WriteBytes(v []byte) error {
 }
 
 func (enc *Encoder) Encode(v interface{}) error {
+	defer enc.Flush()
 	switch v := v.(type) {
 	case Marshaler:
 		return v.MarshalBinny(enc)
