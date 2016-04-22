@@ -20,6 +20,8 @@ type Marshaler interface {
 
 type Encoder struct {
 	w *bufio.Writer
+
+	NoAutoFlushOnEncode bool // Do not auto flush after calling .Encode.
 }
 
 // NewEncoder returns a new encoder with the DefaultEncoderBufferSize
@@ -47,21 +49,20 @@ func (enc *Encoder) writeType(t Type) error {
 	return enc.w.WriteByte(byte(t))
 }
 
-func (enc *Encoder) WriteVarUint(x uint64) (err error) {
+func (enc *Encoder) WriteVarUint(x uint64) error {
 	enc.writeType(VarUint)
 	return enc.writeVarUint(x)
 }
 
-func (enc *Encoder) writeVarUint(x uint64) (err error) {
+func (enc *Encoder) writeVarUint(x uint64) error {
 	for x >= 0x80 {
 		enc.w.WriteByte(byte(x) | 0x80)
 		x >>= 7
 	}
-	err = enc.w.WriteByte(byte(x))
-	return
+	return enc.w.WriteByte(byte(x))
 }
 
-func (enc *Encoder) WriteVarInt(x int64) (err error) {
+func (enc *Encoder) WriteVarInt(x int64) error {
 	enc.writeType(VarInt)
 	return enc.writeVarInt(x)
 }
@@ -88,51 +89,58 @@ func (enc *Encoder) WriteBytes(v []byte) error {
 	return err
 }
 
-func (enc *Encoder) Encode(v interface{}) error {
-	defer enc.Flush()
+func (enc *Encoder) Encode(v interface{}) (err error) {
+	oldNoFlush := enc.NoAutoFlushOnEncode
+	enc.NoAutoFlushOnEncode = true
 	switch v := v.(type) {
 	case Marshaler:
-		return v.MarshalBinny(enc)
+		err = v.MarshalBinny(enc)
 	case encoding.BinaryMarshaler:
-		return enc.WriteBinary(v)
+		err = enc.WriteBinary(v)
 	case gob.GobEncoder:
-		return enc.WriteGob(v)
+		err = enc.WriteGob(v)
 	case string:
-		return enc.WriteString(v)
+		err = enc.WriteString(v)
 	case []byte:
-		return enc.WriteBytes(v)
+		err = enc.WriteBytes(v)
 	case int64:
-		return enc.WriteInt(int64(v))
+		err = enc.WriteInt(int64(v))
 	case int32:
-		return enc.WriteInt(int64(v))
+		err = enc.WriteInt(int64(v))
 	case int16:
-		return enc.WriteInt(int64(v))
+		err = enc.WriteInt(int64(v))
 	case int8:
-		return enc.WriteInt8(v)
+		err = enc.WriteInt8(v)
 	case int:
-		return enc.WriteInt(int64(v))
+		err = enc.WriteInt(int64(v))
 	case uint64:
-		return enc.WriteUint(uint64(v))
+		err = enc.WriteUint(uint64(v))
 	case uint32:
-		return enc.WriteUint(uint64(v))
+		err = enc.WriteUint(uint64(v))
 	case uint16:
-		return enc.WriteUint(uint64(v))
+		err = enc.WriteUint(uint64(v))
 	case uint8:
-		return enc.WriteUint8(v)
+		err = enc.WriteUint8(v)
 	case uint:
-		return enc.WriteUint(uint64(v))
+		err = enc.WriteUint(uint64(v))
 	case float32:
-		return enc.WriteFloat32(v)
+		err = enc.WriteFloat32(v)
 	case float64:
-		return enc.WriteFloat64(v)
+		err = enc.WriteFloat64(v)
 	case complex64:
-		return enc.WriteComplex64(v)
+		err = enc.WriteComplex64(v)
 	case complex128:
-		return enc.WriteComplex128(v)
+		err = enc.WriteComplex128(v)
 	case bool:
-		return enc.WriteBool(v)
+		err = enc.WriteBool(v)
+	default:
+		err = enc.encodeValue(reflect.ValueOf(v))
 	}
-	return enc.encodeValue(reflect.ValueOf(v))
+	enc.NoAutoFlushOnEncode = oldNoFlush
+	if !oldNoFlush {
+		enc.Flush()
+	}
+	return err
 }
 
 func (enc *Encoder) encodeValue(v reflect.Value) error {

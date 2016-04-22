@@ -13,7 +13,9 @@ var pools = struct {
 	enc: sync.Pool{
 		New: func() interface{} {
 			buf := bytes.NewBuffer(make([]byte, 0, DefaultEncoderBufferSize))
-			return &encBuffer{b: buf, e: NewEncoder(buf)}
+			eb := &encBuffer{b: buf, e: NewEncoder(buf)}
+			eb.e.NoAutoFlushOnEncode = true
+			return eb
 		},
 	},
 	dec: sync.Pool{
