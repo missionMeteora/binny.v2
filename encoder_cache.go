@@ -26,7 +26,7 @@ func typeEncoder(t reflect.Type) (fn encoderFunc) {
 	}
 
 	encCache.Lock()
-	encCache.m[t] = nopeEnc
+	encCache.m[t] = nil
 	encCache.Unlock()
 
 	fn = newTypeEncoder(t, true)
@@ -239,22 +239,23 @@ func newMapEncoder(t reflect.Type) encoderFunc {
 }
 
 type structEncoder struct {
-	fields []field
+	t reflect.Type
 }
 
 func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
+	fields := cachedTypeFields(se.t)
+	if len(fields) == 0 {
+		return e.writeType(EmptyStruct)
+	}
 	e.writeType(Struct)
-	for i := range se.fields {
-		tf := &se.fields[i]
-		tf.RLock()
+	for i := range fields {
+		tf := &fields[i]
 		vf := indirect(fieldByIndex(v, tf.index, false))
 		if !vf.IsValid() || tf.zero(vf) {
-			tf.RUnlock()
 			continue
 		}
 		e.WriteString(tf.name)
 		err = tf.enc(e, vf)
-		tf.RUnlock()
 		if err != nil {
 			return
 		}
@@ -264,10 +265,7 @@ func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
 }
 
 func newStructEncoder(t reflect.Type) encoderFunc {
-	se := structEncoder{fields: cachedTypeFields(t)}
-	if len(se.fields) == 0 {
-		return emptyStructEncoder
-	}
+	se := structEncoder{t}
 	return se.encode
 }
 

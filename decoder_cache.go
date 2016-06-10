@@ -35,7 +35,7 @@ func typeDecoder(t reflect.Type) (fn decoderFunc) {
 	}
 
 	decCache.Lock()
-	decCache.m[t] = nopeDec
+	decCache.m[t] = nil
 	decCache.Unlock()
 
 	fn = newTypeDecoder(t)
@@ -236,10 +236,18 @@ func newSliceDecoder(t reflect.Type) decoderFunc {
 }
 
 type structDecoder struct {
-	fields map[string]*field
+	t reflect.Type
 }
 
 func (sd structDecoder) decode(d *Decoder, v reflect.Value) error {
+	var (
+		flds   = cachedTypeFields(sd.t)
+		fields = make(map[string]*field, len(flds))
+	)
+	for i := range flds {
+		f := &flds[i] // need a pointer so when we later update fields .dec it'd get picked up.
+		fields[f.name] = f
+	}
 	if err := d.expectType(Struct); err != nil {
 		if err, ok := err.(DecoderTypeError); ok && err.Actual == Nil || err.Actual == EmptyStruct {
 			return nil
@@ -254,7 +262,7 @@ func (sd structDecoder) decode(d *Decoder, v reflect.Value) error {
 			}
 			return err
 		}
-		if f, ok := sd.fields[n]; ok {
+		if f, ok := fields[n]; ok {
 			fld := fieldByIndex(v, f.index, true)
 			if err := f.dec(d, fld); err != nil {
 				return err
@@ -264,14 +272,7 @@ func (sd structDecoder) decode(d *Decoder, v reflect.Value) error {
 }
 
 func newStructDecoder(t reflect.Type) decoderFunc {
-	var (
-		flds = cachedTypeFields(t)
-		sd   = structDecoder{fields: make(map[string]*field, len(flds))}
-	)
-	for i := range flds {
-		f := &flds[i] // need a pointer so when we later update fields .dec it'd get picked up.
-		sd.fields[f.name] = f
-	}
+	sd := structDecoder{t}
 	return sd.decode
 }
 

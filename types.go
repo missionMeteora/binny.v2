@@ -76,7 +76,6 @@ var (
 )
 
 type field struct {
-	sync.RWMutex
 	name   string
 	index  []int
 	tagged bool
@@ -112,13 +111,15 @@ func updateCachedFields(enc bool) {
 	for _, flds := range fieldCache.m {
 		for i := range flds {
 			f := &flds[i]
-			f.Lock()
 			if enc {
-				f.enc = encCache.m[f.typ]
+				if f.enc == nil {
+					f.enc = encCache.m[f.typ]
+				}
 			} else {
-				f.dec = decCache.m[f.typ]
+				if f.dec == nil {
+					f.dec = decCache.m[f.typ]
+				}
 			}
-			f.Unlock()
 		}
 	}
 	fieldCache.Unlock()
@@ -143,7 +144,8 @@ func typeFields(t reflect.Type) []field {
 		current, next = next, current[:0]
 		count, nextCount = nextCount, map[reflect.Type]int{}
 
-		for _, f := range current {
+		for i := range current {
+			f := &current[i]
 			if visited[f.typ] {
 				continue
 			}
