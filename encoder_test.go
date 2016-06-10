@@ -142,3 +142,16 @@ func BenchmarkEncoderBig(b *testing.B) {
 }
 
 func BenchmarkEncoderSmall(b *testing.B) { benchEncoder(b, benchVal.S.S.S) }
+
+func BenchmarkEncoderNativeTypes(b *testing.B) {
+	v := &struct {
+		S1, S2, S3 string
+		B1, B2, B3 bool
+		A          [5]string
+	}{
+		"s1", "s2", "s3",
+		true, true, true,
+		[5]string{"0", "1", "2", "3", "4"},
+	}
+	benchEncoder(b, v)
+}

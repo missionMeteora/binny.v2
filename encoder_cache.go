@@ -246,12 +246,16 @@ func (se structEncoder) encode(e *Encoder, v reflect.Value) (err error) {
 	e.writeType(Struct)
 	for i := range se.fields {
 		tf := &se.fields[i]
+		tf.RLock()
 		vf := indirect(fieldByIndex(v, tf.index, false))
 		if !vf.IsValid() || tf.zero(vf) {
+			tf.RUnlock()
 			continue
 		}
 		e.WriteString(tf.name)
-		if err = tf.enc(e, vf); err != nil {
+		err = tf.enc(e, vf)
+		tf.RUnlock()
+		if err != nil {
 			return
 		}
 	}
