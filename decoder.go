@@ -70,7 +70,10 @@ func (dec *Decoder) peekType() Type {
 }
 
 func (dec *Decoder) expectType(et Type) error {
-	if t, _ := dec.readType(); t != et {
+	if t, err := dec.readType(); t != et {
+		if err != nil {
+			return err
+		}
 		return DecoderTypeError{et.String(), t}
 	}
 	return nil
