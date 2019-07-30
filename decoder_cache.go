@@ -211,6 +211,7 @@ func (sd sliceDecoder) decode(d *Decoder, v reflect.Value) error {
 			v.SetCap(ln)
 		}
 	}
+
 	dec := typeDecoder(sd.t)
 	for i := 0; i < int(ln); i++ {
 		// this is a bug
@@ -218,6 +219,7 @@ func (sd sliceDecoder) decode(d *Decoder, v reflect.Value) error {
 			d.readType()
 			continue
 		}
+
 		if err = dec(d, v.Index(i)); err != nil {
 			return err
 		}
@@ -230,7 +232,6 @@ func newSliceDecoder(t reflect.Type) decoderFunc {
 	if t.Kind() == reflect.Uint8 {
 		return bytesDecoder
 	}
-	typeDecoder(t)
 	d := sliceDecoder{t: t}
 	return d.decode
 }
@@ -292,8 +293,9 @@ func (md mapDecoder) decode(d *Decoder, v reflect.Value) error {
 
 	t := v.Type()
 	if v.IsNil() {
-		v.Set(reflect.MakeMap(t))
+		v.Set(reflect.MakeMapWithSize(t, int(ln)))
 	}
+
 	kdec, vdec := typeDecoder(md.kt), typeDecoder(md.vt)
 	for i, kt, vt := 0, t.Key(), t.Elem(); i < int(ln); i++ {
 		key := reflect.New(kt).Elem()
@@ -311,6 +313,7 @@ func (md mapDecoder) decode(d *Decoder, v reflect.Value) error {
 		}
 		v.SetMapIndex(key, val)
 	}
+
 	return d.expectType(EOV)
 }
 
