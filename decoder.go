@@ -284,7 +284,8 @@ func (dec *Decoder) ReadBytes() ([]byte, error) {
 // ReadBytes returns a string.
 func (dec *Decoder) ReadString() (string, error) {
 	b, err := dec.readBytes(String)
-	return string(b), err
+
+	return *(*string)(unsafe.Pointer(&b)), err
 }
 
 // ReadBinary decodes and reads an object that implements the `encoding.BinaryUnmarshaler` interface.
